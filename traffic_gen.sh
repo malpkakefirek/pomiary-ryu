@@ -1,26 +1,35 @@
 #!/bin/bash
 
-TARGETS=("10.0.0.2" "10.0.0.3" "10.0.0.4" "10.0.0.5" "10.0.0.6")
-
-echo "Startuje generator ruchu z hosta h1..."
+TARGETS=("10.0.0.2" "10.0.0.3" "10.0.0.4" "10.0.0.5" "10.0.0.6" "10.0.0.7")
 
 while true; do
-    echo "[$(date +%T)] Wysylam..."
-
-    # [h2] TCP port 5001
-    iperf -c 10.0.0.2 -p 5001 -t 5 &
+    NUM_FLOWS=$(( ( RANDOM % 3 ) + 1 ))
     
-    # [h3] UDP port 5002
-    iperf -c 10.0.0.3 -u -p 5002 -b 1M -t 5 &
-    
-    # [h4] TCP port 8080
-    iperf -c 10.0.0.4 -p 8080 -t 5 &
+    echo "--- Nowa seria: uruchamiam $NUM_FLOWS rownolegle przeplywy ---"
 
-    # [h5] TCP na losowym default porcie
-    iperf -c 10.0.0.5 -t 5 &
-    
-    # [h6] UDP streaming danych
-    iperf -c 10.0.0.6 -u -b 5M -t 5 &
+    for (( i=1; i<=NUM_FLOWS; i++ ))
+    do
+        RAND_IDX=$(( RANDOM % ${#TARGETS[@]} ))
+        DEST_IP=${TARGETS[$RAND_IDX]}
 
-    sleep 7 # 7 nie 5 na wszelki wypadek
+        DURATION=$(( ( RANDOM % 6 ) + 3 ))
+
+        TYPE=$(( RANDOM % 2 ))
+
+        if [ $TYPE -eq 0 ]; then
+            # --- TCP ---
+            echo "   [Flow $i] TCP -> $DEST_IP (czas: ${DURATION}s)"
+            iperf -c $DEST_IP -t $DURATION &
+        else
+            # --- UDP ---
+            # bandwidth 1M - 10M
+            BW=$(( ( RANDOM % 10 ) + 1 ))M
+            echo "   [Flow $i] UDP -> $DEST_IP (czas: ${DURATION}s, bw: $BW)"
+            iperf -c $DEST_IP -u -b $BW -t $DURATION &
+        fi
+    done
+
+    SLEEP_TIME=$(( ( RANDOM % 2 ) + 1 ))
+    echo "--- Czekam ${SLEEP_TIME}s przed kolejna seria... ---"
+    sleep $SLEEP_TIME
 done
