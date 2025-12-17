@@ -7,3 +7,7 @@ Prosta topologia testowa – używana do podstawowych prób implementacji i test
 ### topologia2.png  
 ![Topologia główna](topologia2.png)  
 Główna topologia projektu – wykorzystywana w dalszych etapach.
+
+### histereza.png  
+![Histeraza natężenia ruchu i prędkości próbkowania](histereza.png)  
+Histeraza natężenia ruchu i prędkości próbkowania
