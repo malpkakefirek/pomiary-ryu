@@ -5,7 +5,7 @@ from ryu.controller.handler import set_ev_cls
 from ryu.ofproto import ofproto_v1_3
 from ryu.lib.packet import packet
 from ryu.lib.packet import ethernet
-from ryu.app import simple_switch_stp_13 # Spanning Tree Protocol, bo nam się pętla tam poburzy
+from ryu.app import simple_switch_stp_13 # Spanning Tree Protocol
 from ryu.lib import hub
 
 import time
@@ -19,9 +19,8 @@ class ProjectController(simple_switch_stp_13.SimpleSwitch13):
         self.datapaths = {}
         self.high_monitor_interval = 2
         self.low_monitor_interval = 10
-        self.high_bw_threshold = 10_000_000
-        self.low_bw_threshold = 8_000_000
-        # }
+        self.high_bw_threshold = 1000000
+        self.low_bw_threshold = 800000
         self.flow_history = {}
         self.dp_next_poll = {}
         self.monitor_thread = hub.spawn(self._monitor)
@@ -89,23 +88,28 @@ class ProjectController(simple_switch_stp_13.SimpleSwitch13):
             last_bytes = entry['last_bytes']
             last_time = entry['last_time']
             high_state = entry['high_state']
-
+            state_str = "HIGH " if high_state else "LOW  "
+            throughput_bps = 0
             if last_bytes is not None:
                 delta_bytes = stat.byte_count - last_bytes
                 delta_time = now - last_time
                 if delta_time > 0:
                     throughput_bps = (delta_bytes * 8) / delta_time
-                    self.logger.info(
-                        "[THROUGHPUT] STATE=%s DPID=%016x Flow={%s} %.2f bps",
-                        "HIGH" if high_state else "LOW", dpid, match_str, throughput_bps
-                    )
-
             if throughput_bps >= self.high_bw_threshold and not high_state:
                 entry['interval'] = self.high_monitor_interval
                 entry['high_state'] = True
+                state_str = "HIGH^"
             elif throughput_bps <= self.low_bw_threshold and high_state:
                 entry['interval'] = self.low_monitor_interval
                 entry['high_state'] = False
+                state_str = "LOW v"
+
+            if last_bytes is not None:
+                self.logger.info(
+                        "[THROUGHPUT] STATE=%s DPID=%016x Flow={%s} %.2f bps",
+                        state_str, dpid, match_str, throughput_bps
+                    )
+
 
             entry['last_bytes'] = stat.byte_count
             entry['last_time'] = now
@@ -113,4 +117,4 @@ class ProjectController(simple_switch_stp_13.SimpleSwitch13):
             self.dp_next_poll[dpid] = now + entry['interval']
 
     def _match_to_str(self, match):
-        return ",".join(f"{k}={v}" for k, v in sorted(match.items()))
+       return ",".join("{}={}".format(k,v) for k, v in sorted(match.items()))
